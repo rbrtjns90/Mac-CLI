@@ -1,0 +1,178 @@
+#!/bin/sh
+
+#--------------------------------------------------------------------
+# Disk Utilities
+#--------------------------------------------------------------------
+
+case "$fn" in
+
+    # List all disks and volumes
+    "disk:list")
+        echo "${WHITEBOLD}Listing all disks and volumes...${NC}"
+        if [ "$echocommand" == "true" ]; then
+            echo "${GREEN}diskutil list\n${NC}"
+        fi
+        diskutil list
+    ;;
+
+    # Show disk usage for all mounted volumes
+    "disk:usage")
+        echo "${WHITEBOLD}Disk usage for all mounted volumes:${NC}"
+        if [ "$echocommand" == "true" ]; then
+            echo "${GREEN}df -h\n${NC}"
+        fi
+        df -h
+    ;;
+
+    # Show detailed information about a specific disk
+    "disk:info")
+        if [ ! -z "$firstParameter" -a "$firstParameter" != " " ]; then
+            echo "${WHITEBOLD}Disk information for ${firstParameter}:${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}diskutil info $firstParameter\n${NC}"
+            fi
+            diskutil info "$firstParameter"
+        else
+            echo "${RED}Please specify a disk identifier (e.g., disk0, disk1s1)${NC}"
+            echo "${YELLOW}Usage: mac disk:info <disk_identifier>${NC}"
+        fi
+    ;;
+
+    # Verify disk permissions and structure
+    "disk:verify")
+        if [ ! -z "$firstParameter" -a "$firstParameter" != " " ]; then
+            echo "${WHITEBOLD}Verifying disk ${firstParameter}...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}diskutil verifyVolume $firstParameter\n${NC}"
+            fi
+            diskutil verifyVolume "$firstParameter"
+        else
+            echo "${RED}Please specify a disk identifier (e.g., disk1s1)${NC}"
+            echo "${YELLOW}Usage: mac disk:verify <disk_identifier>${NC}"
+        fi
+    ;;
+
+    # Repair disk permissions and structure
+    "disk:repair")
+        if [ ! -z "$firstParameter" -a "$firstParameter" != " " ]; then
+            echo "${WHITEBOLD}Repairing disk ${firstParameter}...${NC}"
+            echo "${RED}Warning: This operation may take some time${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}diskutil repairVolume $firstParameter\n${NC}"
+            fi
+            diskutil repairVolume "$firstParameter"
+        else
+            echo "${RED}Please specify a disk identifier (e.g., disk1s1)${NC}"
+            echo "${YELLOW}Usage: mac disk:repair <disk_identifier>${NC}"
+        fi
+    ;;
+
+    # Eject a disk or volume
+    "disk:eject")
+        if [ ! -z "$firstParameter" -a "$firstParameter" != " " ]; then
+            echo "${WHITEBOLD}Ejecting ${firstParameter}...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}diskutil eject $firstParameter\n${NC}"
+            fi
+            diskutil eject "$firstParameter"
+        else
+            echo "${RED}Please specify a disk identifier or mount point${NC}"
+            echo "${YELLOW}Usage: mac disk:eject <disk_identifier_or_mount_point>${NC}"
+        fi
+    ;;
+
+    # Mount a disk or volume
+    "disk:mount")
+        if [ ! -z "$firstParameter" -a "$firstParameter" != " " ]; then
+            echo "${WHITEBOLD}Mounting ${firstParameter}...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}diskutil mount $firstParameter\n${NC}"
+            fi
+            diskutil mount "$firstParameter"
+        else
+            echo "${RED}Please specify a disk identifier${NC}"
+            echo "${YELLOW}Usage: mac disk:mount <disk_identifier>${NC}"
+        fi
+    ;;
+
+    # Unmount a disk or volume
+    "disk:unmount")
+        if [ ! -z "$firstParameter" -a "$firstParameter" != " " ]; then
+            echo "${WHITEBOLD}Unmounting ${firstParameter}...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}diskutil unmount $firstParameter\n${NC}"
+            fi
+            diskutil unmount "$firstParameter"
+        else
+            echo "${RED}Please specify a disk identifier or mount point${NC}"
+            echo "${YELLOW}Usage: mac disk:unmount <disk_identifier_or_mount_point>${NC}"
+        fi
+    ;;
+
+    # Show disk activity and I/O statistics
+    "disk:activity")
+        echo "${WHITEBOLD}Disk activity (press Ctrl+C to stop):${NC}"
+        if [ "$echocommand" == "true" ]; then
+            echo "${GREEN}iostat -d 1\n${NC}"
+        fi
+        iostat -d 1
+    ;;
+
+    # Show disk space usage by directory (current directory)
+    "disk:space")
+        target_dir="${firstParameter:-.}"
+        echo "${WHITEBOLD}Disk space usage for ${target_dir}:${NC}"
+        if [ "$echocommand" == "true" ]; then
+            echo "${GREEN}du -sh $target_dir/* | sort -hr\n${NC}"
+        fi
+        du -sh "$target_dir"/* 2>/dev/null | sort -hr
+    ;;
+
+    # Show SMART status for all disks
+    "disk:smart")
+        echo "${WHITEBOLD}SMART status for all disks:${NC}"
+        if [ "$echocommand" == "true" ]; then
+            echo "${GREEN}system_profiler SPSerialATADataType | grep -A 10 \"SMART Status\"\n${NC}"
+        fi
+        system_profiler SPSerialATADataType | grep -A 10 "SMART Status"
+    ;;
+
+    # Secure erase free space on a volume
+    "disk:secureerase")
+        if [ ! -z "$firstParameter" -a "$firstParameter" != " " ]; then
+            echo "${WHITEBOLD}Secure erasing free space on ${firstParameter}...${NC}"
+            echo "${RED}Warning: This operation will take a very long time${NC}"
+            read -p "Are you sure you want to continue? (y/N): " confirm
+            if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+                if [ "$echocommand" == "true" ]; then
+                    echo "${GREEN}diskutil secureErase freespace 1 $firstParameter\n${NC}"
+                fi
+                diskutil secureErase freespace 1 "$firstParameter"
+            else
+                echo "${YELLOW}Operation cancelled${NC}"
+            fi
+        else
+            echo "${RED}Please specify a mount point (e.g., /Volumes/MyDisk)${NC}"
+            echo "${YELLOW}Usage: mac disk:secureerase <mount_point>${NC}"
+        fi
+    ;;
+
+    # Show disk utility help
+    "disk:help")
+        echo "${WHITEBOLD}Available disk utility commands:${NC}"
+        echo "${GREEN}disk:list${NC}        - List all disks and volumes"
+        echo "${GREEN}disk:usage${NC}       - Show disk usage for all mounted volumes"
+        echo "${GREEN}disk:info${NC}        - Show detailed information about a specific disk"
+        echo "${GREEN}disk:verify${NC}      - Verify disk permissions and structure"
+        echo "${GREEN}disk:repair${NC}      - Repair disk permissions and structure"
+        echo "${GREEN}disk:eject${NC}       - Eject a disk or volume"
+        echo "${GREEN}disk:mount${NC}       - Mount a disk or volume"
+        echo "${GREEN}disk:unmount${NC}     - Unmount a disk or volume"
+        echo "${GREEN}disk:activity${NC}    - Show real-time disk activity"
+        echo "${GREEN}disk:space${NC}       - Show disk space usage by directory"
+        echo "${GREEN}disk:smart${NC}       - Show SMART status for all disks"
+        echo "${GREEN}disk:secureerase${NC} - Secure erase free space on a volume"
+        echo "${GREEN}disk:help${NC}        - Show this help message"
+    ;;
+
+esac

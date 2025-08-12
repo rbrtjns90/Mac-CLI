@@ -193,3 +193,22 @@ You can uninstall Mac CLI by running:
 | Command  | Description |
 | ------------- | ------------- |
 | `mac brew`  | Get a list of installed Homebrew packages  |
+
+
+### Disk Utilities
+
+| Command  | Description | Arguments |
+| ------------- | ------------- | ------------- |
+| `mac disk:list`  | List all disks and volumes  | |
+| `mac disk:usage`  | Show disk usage for all mounted volumes  | |
+| `mac disk:info`  | Show detailed information about a specific disk  | Disk identifier (e.g., disk0, disk1s1) |
+| `mac disk:verify`  | Verify disk permissions and structure  | Disk identifier (e.g., disk1s1) |
+| `mac disk:repair`  | Repair disk permissions and structure  | Disk identifier (e.g., disk1s1) |
+| `mac disk:eject`  | Eject a disk or volume  | Disk identifier or mount point |
+| `mac disk:mount`  | Mount a disk or volume  | Disk identifier |
+| `mac disk:unmount`  | Unmount a disk or volume  | Disk identifier or mount point |
+| `mac disk:activity`  | Show real-time disk activity (press Ctrl+C to stop)  | |
+| `mac disk:space`  | Show disk space usage by directory  | Directory path (optional, defaults to current) |
+| `mac disk:smart`  | Show SMART status for all disks  | |
+| `mac disk:secureerase`  | Secure erase free space on a volume  | Mount point (e.g., /Volumes/MyDisk) |
+| `mac disk:help`  | Show disk utility help with all available commands  | |
