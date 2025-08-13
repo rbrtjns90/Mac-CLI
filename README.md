@@ -212,3 +212,32 @@ You can uninstall Mac CLI by running:
 | `mac disk:smart`  | Show SMART status for all disks  | |
 | `mac disk:secureerase`  | Secure erase free space on a volume  | Mount point (e.g., /Volumes/MyDisk) |
 | `mac disk:help`  | Show disk utility help with all available commands  | |
+
+### Docker Utilities
+
+| Command  | Description | Arguments |
+| ------------- | ------------- | ------------- |
+| `mac docker:ps`  | List running Docker containers | |
+| `mac docker:ps:all`  | List all containers (including stopped) | |
+| `mac docker:images`  | List Docker images | |
+| `mac docker:volumes`  | List Docker volumes | |
+| `mac docker:networks`  | List Docker networks | |
+| `mac docker:logs [-f] X`  | Show logs for a container (add `-f` to follow) | X = container name or ID |
+| `mac docker:shell X [/bin/bash]`  | Open interactive shell in a container | X = container name or ID |
+| `mac docker:stats [X]`  | Real-time container stats (single container or all) | X = optional container name or ID |
+| `mac docker:start X`  | Start a stopped container | X = container name or ID |
+| `mac docker:stop X`  | Stop a running container | X = container name or ID |
+| `mac docker:restart X`  | Restart a container | X = container name or ID |
+| `mac docker:rm [-f] X`  | Remove a container (use `-f` to force) | X = container name or ID |
+| `mac docker:rmi [-f] X`  | Remove an image (use `-f` to force) | X = image name or ID |
+| `mac docker:info`  | Show Docker system information | |
+| `mac docker:df`  | Show Docker disk usage | |
+| `mac docker:clean [-v]`  | Remove stopped containers, dangling images, unused networks, and optionally volumes (`-v`) | |
+| `mac docker:compose:up [-d] [docker-compose.yml]`  | Start Docker Compose services (detached with `-d`) | Optional compose file |
+| `mac docker:compose:down [-v] [docker-compose.yml]`  | Stop Docker Compose services (remove volumes with `-v`) | Optional compose file |
+| `mac docker:help`  | Show Docker help with all available commands | |
+
+Notes:
+
+- Docker must be running. If the Docker daemon is not available, commands will show a friendly message suggesting to start Docker Desktop (e.g., `open -a Docker`).
+- Compose auto-detection: the CLI uses `docker compose` (v2) when available, or falls back to `docker-compose` (v1).

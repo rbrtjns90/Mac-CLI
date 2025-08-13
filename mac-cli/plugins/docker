@@ -4,6 +4,53 @@
 # Docker Utilities
 #--------------------------------------------------------------------
 
+# Helper: check docker CLI availability
+docker_cli_available() {
+    command -v docker >/dev/null 2>&1
+}
+
+# Helper: check docker daemon running
+docker_daemon_running() {
+    docker info >/dev/null 2>&1
+}
+
+# Helper: ensure docker is installed
+ensure_docker_cli() {
+    if ! docker_cli_available; then
+        echo "${RED}Docker CLI is not installed or not in PATH.${NC}"
+        echo "${YELLOW}Install Docker Desktop for Mac and ensure 'docker' is on PATH.${NC}"
+        echo "${YELLOW}Download: https://www.docker.com/products/docker-desktop/${NC}"
+        return 1
+    fi
+    return 0
+}
+
+# Helper: ensure daemon running
+ensure_docker_running() {
+    ensure_docker_cli || return 1
+    if ! docker_daemon_running; then
+        echo "${RED}Cannot connect to the Docker daemon.${NC}"
+        echo "${YELLOW}Start Docker Desktop and wait until it reports 'Docker is running'.${NC}"
+        echo "${YELLOW}You can try: open -a Docker${NC}"
+        return 1
+    fi
+    return 0
+}
+
+# Helper: resolve compose command (v2 'docker compose' or legacy 'docker-compose')
+compose_cmd() {
+    if docker_cli_available && docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+        return 0
+    elif command -v docker-compose >/dev/null 2>&1; then
+        echo "docker-compose"
+        return 0
+    else
+        echo ""
+        return 1
+    fi
+}
+
 case "$fn" in
 
     # List running containers
@@ -12,6 +59,7 @@ case "$fn" in
         if [ "$echocommand" == "true" ]; then
             echo "${GREEN}docker ps\n${NC}"
         fi
+        ensure_docker_running || exit 1
         docker ps
     ;;
 
@@ -23,6 +71,7 @@ case "$fn" in
         echo "  - All dangling images"
         echo "  - All unused networks"
         echo "  - All unused volumes (add -v flag)"
+        ensure_docker_running || exit 1
         read -p "Are you sure you want to continue? (y/N): " confirm
         if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
             echo "${WHITEBOLD}Removing stopped containers...${NC}"
@@ -86,11 +135,13 @@ case "$fn" in
                 if [ "$echocommand" == "true" ]; then
                     echo "${GREEN}docker logs -f $container_name\n${NC}"
                 fi
+                ensure_docker_running || exit 1
                 docker logs -f "$container_name"
             else
                 if [ "$echocommand" == "true" ]; then
                     echo "${GREEN}docker logs $container_name\n${NC}"
                 fi
+                ensure_docker_running || exit 1
                 docker logs "$container_name"
             fi
         else
@@ -109,6 +160,7 @@ case "$fn" in
             if [ "$echocommand" == "true" ]; then
                 echo "${GREEN}docker exec -it $firstParameter $shell_cmd\n${NC}"
             fi
+            ensure_docker_running || exit 1
             docker exec -it "$firstParameter" "$shell_cmd"
         else
             echo "${RED}Please specify a container name or ID${NC}"
@@ -126,6 +178,7 @@ case "$fn" in
             if [ "$echocommand" == "true" ]; then
                 echo "${GREEN}docker stats $firstParameter\n${NC}"
             fi
+            ensure_docker_running || exit 1
             docker stats "$firstParameter"
         else
             echo "${WHITEBOLD}Showing stats for all running containers...${NC}"
@@ -133,12 +186,20 @@ case "$fn" in
             if [ "$echocommand" == "true" ]; then
                 echo "${GREEN}docker stats\n${NC}"
             fi
+            ensure_docker_running || exit 1
             docker stats
         fi
     ;;
 
     # Start docker-compose services
     "docker:compose:up")
+        ensure_docker_running || exit 1
+        DC="$(compose_cmd)"
+        if [ -z "$DC" ]; then
+            echo "${RED}Neither 'docker compose' (v2) nor 'docker-compose' (v1) is available.${NC}"
+            echo "${YELLOW}Install Docker Desktop (includes Compose v2) or docker-compose.${NC}"
+            exit 1
+        fi
         compose_file=""
         detach_flag=""
         
@@ -158,20 +219,27 @@ case "$fn" in
         if [ ! -z "$compose_file" ]; then
             echo "${WHITEBOLD}Starting Docker Compose services from ${compose_file}...${NC}"
             if [ "$echocommand" == "true" ]; then
-                echo "${GREEN}docker-compose -f $compose_file up $detach_flag\n${NC}"
+                echo "${GREEN}$DC -f $compose_file up $detach_flag\n${NC}"
             fi
-            docker-compose -f "$compose_file" up $detach_flag
+            $DC -f "$compose_file" up $detach_flag
         else
             echo "${WHITEBOLD}Starting Docker Compose services...${NC}"
             if [ "$echocommand" == "true" ]; then
-                echo "${GREEN}docker-compose up $detach_flag\n${NC}"
+                echo "${GREEN}$DC up $detach_flag\n${NC}"
             fi
-            docker-compose up $detach_flag
+            $DC up $detach_flag
         fi
     ;;
 
     # Stop docker-compose services
     "docker:compose:down")
+        ensure_docker_running || exit 1
+        DC="$(compose_cmd)"
+        if [ -z "$DC" ]; then
+            echo "${RED}Neither 'docker compose' (v2) nor 'docker-compose' (v1) is available.${NC}"
+            echo "${YELLOW}Install Docker Desktop (includes Compose v2) or docker-compose.${NC}"
+            exit 1
+        fi
         compose_file=""
         volumes_flag=""
         
@@ -191,15 +259,15 @@ case "$fn" in
         if [ ! -z "$compose_file" ]; then
             echo "${WHITEBOLD}Stopping Docker Compose services from ${compose_file}...${NC}"
             if [ "$echocommand" == "true" ]; then
-                echo "${GREEN}docker-compose -f $compose_file down $volumes_flag\n${NC}"
+                echo "${GREEN}$DC -f $compose_file down $volumes_flag\n${NC}"
             fi
-            docker-compose -f "$compose_file" down $volumes_flag
+            $DC -f "$compose_file" down $volumes_flag
         else
             echo "${WHITEBOLD}Stopping Docker Compose services...${NC}"
             if [ "$echocommand" == "true" ]; then
-                echo "${GREEN}docker-compose down $volumes_flag\n${NC}"
+                echo "${GREEN}$DC down $volumes_flag\n${NC}"
             fi
-            docker-compose down $volumes_flag
+            $DC down $volumes_flag
         fi
     ;;
 
@@ -209,6 +277,7 @@ case "$fn" in
         if [ "$echocommand" == "true" ]; then
             echo "${GREEN}docker ps -a\n${NC}"
         fi
+        ensure_docker_running || exit 1
         docker ps -a
     ;;
 
@@ -218,6 +287,7 @@ case "$fn" in
         if [ "$echocommand" == "true" ]; then
             echo "${GREEN}docker images\n${NC}"
         fi
+        ensure_docker_running || exit 1
         docker images
     ;;
 
@@ -227,6 +297,7 @@ case "$fn" in
         if [ "$echocommand" == "true" ]; then
             echo "${GREEN}docker volume ls\n${NC}"
         fi
+        ensure_docker_running || exit 1
         docker volume ls
     ;;
 
@@ -236,6 +307,7 @@ case "$fn" in
         if [ "$echocommand" == "true" ]; then
             echo "${GREEN}docker network ls\n${NC}"
         fi
+        ensure_docker_running || exit 1
         docker network ls
     ;;
 
@@ -246,6 +318,7 @@ case "$fn" in
             if [ "$echocommand" == "true" ]; then
                 echo "${GREEN}docker stop $firstParameter\n${NC}"
             fi
+            ensure_docker_running || exit 1
             docker stop "$firstParameter"
         else
             echo "${RED}Please specify a container name or ID${NC}"
@@ -260,6 +333,7 @@ case "$fn" in
             if [ "$echocommand" == "true" ]; then
                 echo "${GREEN}docker start $firstParameter\n${NC}"
             fi
+            ensure_docker_running || exit 1
             docker start "$firstParameter"
         else
             echo "${RED}Please specify a container name or ID${NC}"
@@ -274,6 +348,7 @@ case "$fn" in
             if [ "$echocommand" == "true" ]; then
                 echo "${GREEN}docker restart $firstParameter\n${NC}"
             fi
+            ensure_docker_running || exit 1
             docker restart "$firstParameter"
         else
             echo "${RED}Please specify a container name or ID${NC}"
@@ -296,6 +371,7 @@ case "$fn" in
             if [ "$echocommand" == "true" ]; then
                 echo "${GREEN}docker rm $force_flag $firstParameter\n${NC}"
             fi
+            ensure_docker_running || exit 1
             docker rm $force_flag "$firstParameter"
         else
             echo "${RED}Please specify a container name or ID${NC}"
@@ -319,6 +395,7 @@ case "$fn" in
             if [ "$echocommand" == "true" ]; then
                 echo "${GREEN}docker rmi $force_flag $firstParameter\n${NC}"
             fi
+            ensure_docker_running || exit 1
             docker rmi $force_flag "$firstParameter"
         else
             echo "${RED}Please specify an image name or ID${NC}"
@@ -333,6 +410,7 @@ case "$fn" in
         if [ "$echocommand" == "true" ]; then
             echo "${GREEN}docker info\n${NC}"
         fi
+        ensure_docker_running || exit 1
         docker info
     ;;
 
@@ -342,6 +420,7 @@ case "$fn" in
         if [ "$echocommand" == "true" ]; then
             echo "${GREEN}docker system df\n${NC}"
         fi
+        ensure_docker_running || exit 1
         docker system df
     ;;
 
