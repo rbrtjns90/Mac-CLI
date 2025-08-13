@@ -1,0 +1,380 @@
+#!/bin/sh
+
+#--------------------------------------------------------------------
+# Docker Utilities
+#--------------------------------------------------------------------
+
+case "$fn" in
+
+    # List running containers
+    "docker:ps")
+        echo "${WHITEBOLD}Listing running Docker containers...${NC}"
+        if [ "$echocommand" == "true" ]; then
+            echo "${GREEN}docker ps\n${NC}"
+        fi
+        docker ps
+    ;;
+
+    # Remove stopped containers and unused images
+    "docker:clean")
+        echo "${WHITEBOLD}Cleaning up Docker resources...${NC}"
+        echo "${YELLOW}This will remove:${NC}"
+        echo "  - All stopped containers"
+        echo "  - All dangling images"
+        echo "  - All unused networks"
+        echo "  - All unused volumes (add -v flag)"
+        read -p "Are you sure you want to continue? (y/N): " confirm
+        if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+            echo "${WHITEBOLD}Removing stopped containers...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}docker container prune -f\n${NC}"
+            fi
+            docker container prune -f
+            
+            echo "${WHITEBOLD}Removing unused images...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}docker image prune -f\n${NC}"
+            fi
+            docker image prune -f
+            
+            echo "${WHITEBOLD}Removing unused networks...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}docker network prune -f\n${NC}"
+            fi
+            docker network prune -f
+            
+            if [ "$firstParameter" = "-v" ]; then
+                echo "${WHITEBOLD}Removing unused volumes...${NC}"
+                if [ "$echocommand" == "true" ]; then
+                    echo "${GREEN}docker volume prune -f\n${NC}"
+                fi
+                docker volume prune -f
+            fi
+            
+            echo "${GREEN}Docker cleanup completed!${NC}"
+        else
+            echo "${YELLOW}Operation cancelled${NC}"
+        fi
+    ;;
+
+    # Show logs for a container
+    "docker:logs")
+        if [ ! -z "$firstParameter" -a "$firstParameter" != " " ]; then
+            follow_flag=""
+            container_name="$firstParameter"
+            
+            # Check if -f flag is provided as second parameter
+            if [ "$secondParameter" = "-f" ]; then
+                follow_flag="-f"
+            fi
+            
+            # Check if -f flag is provided as first parameter
+            if [ "$firstParameter" = "-f" ]; then
+                if [ ! -z "$secondParameter" -a "$secondParameter" != " " ]; then
+                    follow_flag="-f"
+                    container_name="$secondParameter"
+                else
+                    echo "${RED}Please specify a container name or ID${NC}"
+                    echo "${YELLOW}Usage: mac docker:logs [-f] <container>${NC}"
+                    exit 1
+                fi
+            fi
+            
+            echo "${WHITEBOLD}Showing logs for container ${container_name}...${NC}"
+            if [ ! -z "$follow_flag" ]; then
+                echo "${YELLOW}Following logs (press Ctrl+C to stop)${NC}"
+                if [ "$echocommand" == "true" ]; then
+                    echo "${GREEN}docker logs -f $container_name\n${NC}"
+                fi
+                docker logs -f "$container_name"
+            else
+                if [ "$echocommand" == "true" ]; then
+                    echo "${GREEN}docker logs $container_name\n${NC}"
+                fi
+                docker logs "$container_name"
+            fi
+        else
+            echo "${RED}Please specify a container name or ID${NC}"
+            echo "${YELLOW}Usage: mac docker:logs [-f] <container>${NC}"
+            echo "${YELLOW}  -f: Follow log output${NC}"
+        fi
+    ;;
+
+    # Interactive shell into a container
+    "docker:shell")
+        if [ ! -z "$firstParameter" -a "$firstParameter" != " " ]; then
+            shell_cmd="${secondParameter:-/bin/sh}"
+            echo "${WHITEBOLD}Opening shell in container ${firstParameter}...${NC}"
+            echo "${YELLOW}Using shell: ${shell_cmd}${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}docker exec -it $firstParameter $shell_cmd\n${NC}"
+            fi
+            docker exec -it "$firstParameter" "$shell_cmd"
+        else
+            echo "${RED}Please specify a container name or ID${NC}"
+            echo "${YELLOW}Usage: mac docker:shell <container> [shell_command]${NC}"
+            echo "${YELLOW}Default shell: /bin/sh${NC}"
+            echo "${YELLOW}Example: mac docker:shell mycontainer /bin/bash${NC}"
+        fi
+    ;;
+
+    # Real-time container stats
+    "docker:stats")
+        if [ ! -z "$firstParameter" -a "$firstParameter" != " " ]; then
+            echo "${WHITEBOLD}Showing stats for container ${firstParameter}...${NC}"
+            echo "${YELLOW}Press Ctrl+C to stop${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}docker stats $firstParameter\n${NC}"
+            fi
+            docker stats "$firstParameter"
+        else
+            echo "${WHITEBOLD}Showing stats for all running containers...${NC}"
+            echo "${YELLOW}Press Ctrl+C to stop${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}docker stats\n${NC}"
+            fi
+            docker stats
+        fi
+    ;;
+
+    # Start docker-compose services
+    "docker:compose:up")
+        compose_file=""
+        detach_flag=""
+        
+        # Parse parameters
+        for param in "$firstParameter" "$secondParameter" "$thirdParameter"; do
+            if [ "$param" = "-d" ]; then
+                detach_flag="-d"
+            elif [ "$param" = "-f" ]; then
+                continue
+            elif [ ! -z "$param" -a "$param" != " " -a -z "$compose_file" ]; then
+                if [ "${param:0:1}" != "-" ]; then
+                    compose_file="$param"
+                fi
+            fi
+        done
+        
+        if [ ! -z "$compose_file" ]; then
+            echo "${WHITEBOLD}Starting Docker Compose services from ${compose_file}...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}docker-compose -f $compose_file up $detach_flag\n${NC}"
+            fi
+            docker-compose -f "$compose_file" up $detach_flag
+        else
+            echo "${WHITEBOLD}Starting Docker Compose services...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}docker-compose up $detach_flag\n${NC}"
+            fi
+            docker-compose up $detach_flag
+        fi
+    ;;
+
+    # Stop docker-compose services
+    "docker:compose:down")
+        compose_file=""
+        volumes_flag=""
+        
+        # Parse parameters
+        for param in "$firstParameter" "$secondParameter" "$thirdParameter"; do
+            if [ "$param" = "-v" ]; then
+                volumes_flag="-v"
+            elif [ "$param" = "-f" ]; then
+                continue
+            elif [ ! -z "$param" -a "$param" != " " -a -z "$compose_file" ]; then
+                if [ "${param:0:1}" != "-" ]; then
+                    compose_file="$param"
+                fi
+            fi
+        done
+        
+        if [ ! -z "$compose_file" ]; then
+            echo "${WHITEBOLD}Stopping Docker Compose services from ${compose_file}...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}docker-compose -f $compose_file down $volumes_flag\n${NC}"
+            fi
+            docker-compose -f "$compose_file" down $volumes_flag
+        else
+            echo "${WHITEBOLD}Stopping Docker Compose services...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}docker-compose down $volumes_flag\n${NC}"
+            fi
+            docker-compose down $volumes_flag
+        fi
+    ;;
+
+    # List all containers (including stopped)
+    "docker:ps:all")
+        echo "${WHITEBOLD}Listing all Docker containers...${NC}"
+        if [ "$echocommand" == "true" ]; then
+            echo "${GREEN}docker ps -a\n${NC}"
+        fi
+        docker ps -a
+    ;;
+
+    # List Docker images
+    "docker:images")
+        echo "${WHITEBOLD}Listing Docker images...${NC}"
+        if [ "$echocommand" == "true" ]; then
+            echo "${GREEN}docker images\n${NC}"
+        fi
+        docker images
+    ;;
+
+    # List Docker volumes
+    "docker:volumes")
+        echo "${WHITEBOLD}Listing Docker volumes...${NC}"
+        if [ "$echocommand" == "true" ]; then
+            echo "${GREEN}docker volume ls\n${NC}"
+        fi
+        docker volume ls
+    ;;
+
+    # List Docker networks
+    "docker:networks")
+        echo "${WHITEBOLD}Listing Docker networks...${NC}"
+        if [ "$echocommand" == "true" ]; then
+            echo "${GREEN}docker network ls\n${NC}"
+        fi
+        docker network ls
+    ;;
+
+    # Stop a running container
+    "docker:stop")
+        if [ ! -z "$firstParameter" -a "$firstParameter" != " " ]; then
+            echo "${WHITEBOLD}Stopping container ${firstParameter}...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}docker stop $firstParameter\n${NC}"
+            fi
+            docker stop "$firstParameter"
+        else
+            echo "${RED}Please specify a container name or ID${NC}"
+            echo "${YELLOW}Usage: mac docker:stop <container>${NC}"
+        fi
+    ;;
+
+    # Start a stopped container
+    "docker:start")
+        if [ ! -z "$firstParameter" -a "$firstParameter" != " " ]; then
+            echo "${WHITEBOLD}Starting container ${firstParameter}...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}docker start $firstParameter\n${NC}"
+            fi
+            docker start "$firstParameter"
+        else
+            echo "${RED}Please specify a container name or ID${NC}"
+            echo "${YELLOW}Usage: mac docker:start <container>${NC}"
+        fi
+    ;;
+
+    # Restart a container
+    "docker:restart")
+        if [ ! -z "$firstParameter" -a "$firstParameter" != " " ]; then
+            echo "${WHITEBOLD}Restarting container ${firstParameter}...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}docker restart $firstParameter\n${NC}"
+            fi
+            docker restart "$firstParameter"
+        else
+            echo "${RED}Please specify a container name or ID${NC}"
+            echo "${YELLOW}Usage: mac docker:restart <container>${NC}"
+        fi
+    ;;
+
+    # Remove a container
+    "docker:rm")
+        if [ ! -z "$firstParameter" -a "$firstParameter" != " " ]; then
+            force_flag=""
+            if [ "$secondParameter" = "-f" ] || [ "$firstParameter" = "-f" -a ! -z "$secondParameter" ]; then
+                force_flag="-f"
+                if [ "$firstParameter" = "-f" ]; then
+                    firstParameter="$secondParameter"
+                fi
+            fi
+            
+            echo "${WHITEBOLD}Removing container ${firstParameter}...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}docker rm $force_flag $firstParameter\n${NC}"
+            fi
+            docker rm $force_flag "$firstParameter"
+        else
+            echo "${RED}Please specify a container name or ID${NC}"
+            echo "${YELLOW}Usage: mac docker:rm [-f] <container>${NC}"
+            echo "${YELLOW}  -f: Force remove running container${NC}"
+        fi
+    ;;
+
+    # Remove an image
+    "docker:rmi")
+        if [ ! -z "$firstParameter" -a "$firstParameter" != " " ]; then
+            force_flag=""
+            if [ "$secondParameter" = "-f" ] || [ "$firstParameter" = "-f" -a ! -z "$secondParameter" ]; then
+                force_flag="-f"
+                if [ "$firstParameter" = "-f" ]; then
+                    firstParameter="$secondParameter"
+                fi
+            fi
+            
+            echo "${WHITEBOLD}Removing image ${firstParameter}...${NC}"
+            if [ "$echocommand" == "true" ]; then
+                echo "${GREEN}docker rmi $force_flag $firstParameter\n${NC}"
+            fi
+            docker rmi $force_flag "$firstParameter"
+        else
+            echo "${RED}Please specify an image name or ID${NC}"
+            echo "${YELLOW}Usage: mac docker:rmi [-f] <image>${NC}"
+            echo "${YELLOW}  -f: Force remove image${NC}"
+        fi
+    ;;
+
+    # Show Docker system info
+    "docker:info")
+        echo "${WHITEBOLD}Docker system information:${NC}"
+        if [ "$echocommand" == "true" ]; then
+            echo "${GREEN}docker info\n${NC}"
+        fi
+        docker info
+    ;;
+
+    # Show Docker disk usage
+    "docker:df")
+        echo "${WHITEBOLD}Docker disk usage:${NC}"
+        if [ "$echocommand" == "true" ]; then
+            echo "${GREEN}docker system df\n${NC}"
+        fi
+        docker system df
+    ;;
+
+    # Show Docker help
+    "docker:help")
+        echo "${WHITEBOLD}Available Docker commands:${NC}"
+        echo ""
+        echo "${YELLOW}Container Management:${NC}"
+        echo "${GREEN}docker:ps${NC}           - List running containers"
+        echo "${GREEN}docker:ps:all${NC}       - List all containers (including stopped)"
+        echo "${GREEN}docker:start${NC}        - Start a stopped container"
+        echo "${GREEN}docker:stop${NC}         - Stop a running container"
+        echo "${GREEN}docker:restart${NC}      - Restart a container"
+        echo "${GREEN}docker:rm${NC}           - Remove a container"
+        echo "${GREEN}docker:logs${NC}         - Show logs for a container"
+        echo "${GREEN}docker:shell${NC}        - Interactive shell into a container"
+        echo "${GREEN}docker:stats${NC}        - Real-time container stats"
+        echo ""
+        echo "${YELLOW}Image Management:${NC}"
+        echo "${GREEN}docker:images${NC}       - List Docker images"
+        echo "${GREEN}docker:rmi${NC}          - Remove an image"
+        echo ""
+        echo "${YELLOW}Docker Compose:${NC}"
+        echo "${GREEN}docker:compose:up${NC}   - Start docker-compose services"
+        echo "${GREEN}docker:compose:down${NC} - Stop docker-compose services"
+        echo ""
+        echo "${YELLOW}System Management:${NC}"
+        echo "${GREEN}docker:clean${NC}        - Remove stopped containers and unused images"
+        echo "${GREEN}docker:volumes${NC}      - List Docker volumes"
+        echo "${GREEN}docker:networks${NC}     - List Docker networks"
+        echo "${GREEN}docker:info${NC}         - Show Docker system info"
+        echo "${GREEN}docker:df${NC}           - Show Docker disk usage"
+        echo "${GREEN}docker:help${NC}         - Show this help message"
+    ;;
+
+esac
